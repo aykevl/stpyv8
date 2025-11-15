@@ -14,7 +14,7 @@ from settings import *  # pylint:disable=wildcard-import,unused-wildcard-import
 log = logging.getLogger()
 
 ICU_DATA_PACKAGE_FOLDER = os.path.join(os.pardir, os.pardir, "stpyv8-icu")
-ICU_DATA_V8_FILE_PATH = os.path.join("v8", "out.gn", "x64.release.sample", "icudtl.dat")
+ICU_DATA_V8_FILE_PATH = os.path.join("v8", "out.gn", "arm64.release.sample", "icudtl.dat")
 
 
 def exec_cmd(cmdline, *args, **kwargs):
@@ -139,7 +139,7 @@ def checkout_v8():
 
 
 def build_v8():
-    args = f"gen {os.path.join('out.gn', 'x64.release.sample')} --args=\"{GN_ARGS}\""
+    args = f"gen {os.path.join('out.gn', 'arm64.release.sample')} --args=\"{GN_ARGS}\""
     success, _, __ = exec_cmd(
         os.path.join(DEPOT_HOME, "gn"),
         args,
@@ -152,7 +152,7 @@ def build_v8():
 
     success, _, __ = exec_cmd(
         os.path.join(DEPOT_HOME, "ninja"),
-        f"-C {os.path.join('out.gn', 'x64.release.sample')} v8_monolith",
+        f"-C {os.path.join('out.gn', 'arm64.release.sample')} v8_monolith",
         cwd=V8_HOME,
         msg="Build V8 with ninja",
     )

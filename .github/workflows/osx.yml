@@ -1,7 +1,7 @@
 ---
 name: MacOSX build/release workflow
 on:
-  push:
+  #push:
   pull_request:
   release:
     types: [published]

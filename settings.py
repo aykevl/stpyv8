@@ -56,7 +56,7 @@ extra_link_args = []
 
 include_dirs.add(os.path.join(V8_HOME, "include"))
 library_dirs.add(
-    os.path.join(V8_HOME, os.path.join("out.gn", "x64.release.sample", "obj"))
+    os.path.join(V8_HOME, os.path.join("out.gn", "arm64.release.sample", "obj"))
 )
 
 BOOST_PYTHON_LIB_SHORT = f"boost_python{sys.version_info.major}"
@@ -106,7 +106,7 @@ STPYV8_BOOST_PYTHON = os.getenv(
 
 if os.name in ("nt",):
     include_dirs.add(os.path.join(V8_HOME, "include"))
-    library_dirs.add(os.path.join(V8_HOME, "out.gn", "x64.release.sample", "obj"))
+    library_dirs.add(os.path.join(V8_HOME, "out.gn", "arm64.release.sample", "obj"))
 
     if "BOOST_ROOT" in os.environ:
         include_dirs.add(os.environ.get("BOOST_ROOT"))

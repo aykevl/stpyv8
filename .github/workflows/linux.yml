@@ -12,37 +12,39 @@ jobs:
     # Cloning the repository is still necessary in any case
     # to calculate the hash for the cache key
     name: Build Google V8
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     outputs:
-      v8-hash: ${{ steps.build-v8.outputs.v8-hash }}
+      v8-hash: ${{ steps.clone-v8.outputs.v8-hash }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Clone Google V8
+        id: clone-v8
         run: |
           python -m pip install wheel
           echo "::group::Clone Google V8"
           python setup.py checkout_v8
           echo "::endgroup::"
+          echo "v8-hash=${{ hashFiles('v8/src/**') }}" >> "$GITHUB_OUTPUT"
       - name: Restore Google V8 from cache
         id: restore-v8
         uses: actions/cache/restore@main
         with:
           path: |
-            v8/out.gn/x64.release.sample/obj/libv8_monolith.a
-            v8/out.gn/x64.release.sample/icudtl.dat
+            v8/out.gn/arm64.release.sample/obj/libv8_monolith.a
+            v8/out.gn/arm64.release.sample/icudtl.dat
             v8/include
-          key: linux-build-v8-${{ hashFiles('v8/src/**') }}
+          key: linux-build-v8-${{ hashFiles('v8/src/**') }}-test1
       - name: Build Google V8
-        id: build-v8
         if: ${{ steps.restore-v8.outputs.cache-hit != 'true' }}
         continue-on-error: false
         run: |
-          echo "v8-hash=${{ hashFiles('v8/src/**') }}" >> "$GITHUB_OUTPUT"
           python -m pip install wheel
           echo "::group::v8"
           python setup.py v8
           echo "::endgroup::"
+      - name: Check file type
+        run: objdump -af v8/out.gn/arm64.release.sample/obj/libv8_monolith.a
       - name: Save Google V8 to cache
         uses: actions/cache/save@main
         if: ${{ steps.restore-v8.outputs.cache-hit != 'true' }}
@@ -50,10 +52,10 @@ jobs:
           # Save compiled binary and header files. This will save an
           # additional clone of Google V8 for the linker
           path: |
-            v8/out.gn/x64.release.sample/obj/libv8_monolith.a
-            v8/out.gn/x64.release.sample/icudtl.dat
+            v8/out.gn/arm64.release.sample/obj/libv8_monolith.a
+            v8/out.gn/arm64.release.sample/icudtl.dat
             v8/include
-          key: linux-build-v8-${{ hashFiles('v8/src/**') }}
+          key: linux-build-v8-${{ hashFiles('v8/src/**') }}-test1
   build:
     name: Build Linux wheel (Python ${{ matrix.python-version }})
     needs: build-v8
@@ -63,13 +65,31 @@ jobs:
       STPYV8_BOOST_PYTHON: boost_python${{ matrix.python-version }}
     strategy:
       matrix:
-        os: [ubuntu-20.04]
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        os: [ubuntu-22.04-arm]
+        python-version: ['3.9'] #, '3.10', '3.11', '3.12', '3.13']
         boost-version: [1.87.0]
         boost-version-snake: ['1_87_0']
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Restore Google V8 from cache
+        id: restore-v8
+        uses: actions/cache/restore@main
+        with:
+          path: |
+            v8/out.gn/arm64.release.sample/obj/libv8_monolith.a
+            v8/out.gn/arm64.release.sample/icudtl.dat
+            v8/include
+          key: linux-build-v8-${{ needs.build-v8.outputs.v8-hash }}-test1
+      - name: Test
+        run: |
+          pwd
+          objdump -af v8/out.gn/arm64.release.sample/obj/libv8_monolith.a
+      - name: archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive
+          path: v8/out.gn/arm64.release.sample/obj/libv8_monolith.a
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -86,15 +106,6 @@ jobs:
           cd boost_${{ matrix.boost-version-snake }}
           ./bootstrap.sh
           sudo ./b2 install -j 8 --with-system --with-python --with-filesystem --with-iostreams --with-date_time --with-thread
-      - name: Restore Google V8 from cache
-        id: restore-v8
-        uses: actions/cache/restore@main
-        with:
-          path: |
-            v8/out.gn/x64.release.sample/obj/libv8_monolith.a
-            v8/out.gn/x64.release.sample/icudtl.dat
-            v8/include
-          key: linux-build-v8-${{ needs.build-v8.outputs.v8-hash }}
       - name: Install dependencies
         run: |
           pip install --upgrade pip setuptools wheel auditwheel patchelf pytest pytest-order
@@ -105,10 +116,10 @@ jobs:
           INCLUDE: ${{ env.INCLUDE }};${{ steps.install-python.outputs.python-path
             }}include
           V8_DEPS_LINUX: 0
-          LDFLAGS: -L/usr/lib -L/usr/lib/x86_64-linux-gnu
+          LDFLAGS: -L/usr/lib -L/usr/lib/aarch64-linux-gnu
       - name: Repair wheel
         run: |
-          auditwheel repair --plat manylinux_2_31_x86_64 -w stpyv8-linux-${{ matrix.python-version }} stpyv8-linux-wheelhouse-${{ matrix.python-version }}/*.whl
+          auditwheel repair --plat manylinux_2_35_aarch64 -w stpyv8-linux-${{ matrix.python-version }} stpyv8-linux-wheelhouse-${{ matrix.python-version }}/*.whl
       - name: Install wheel
         run: |
           python -m pip install stpyv8-linux-${{ matrix.python-version }}/*.whl
